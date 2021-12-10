@@ -9,6 +9,7 @@ import ckan.lib.app_globals as app_globals
 import ckan.lib.base as base
 import ckan.lib.helpers as h
 import ckan.lib.navl.dictization_functions as dict_fns
+import ckan.lib.search as search
 import ckan.logic as logic
 import ckan.model as model
 from ckan.common import g, _, config, request
@@ -140,9 +141,9 @@ class ConfigView(MethodView):
 
 
 class TrashView(MethodView):
+
     def __init__(self):
-        self.deleted_packages = model.Session.query(
-            model.Package).filter_by(state=model.State.DELETED)
+        self.deleted_packages = self._get_deleted_datasets()
         self.deleted_orgs = model.Session.query(model.Group).filter_by(
             state=model.State.DELETED, is_organization=True)
         self.deleted_groups = model.Session.query(model.Group).filter_by(
@@ -172,6 +173,30 @@ class TrashView(MethodView):
                 u'group': _(u'There are no groups to purge')
             }
         }
+
+    def _get_deleted_datasets(self):
+        if config.get_value('ckan.search.remove_deleted_packages'):
+            return self._get_deleted_datasets_from_db()
+        else:
+            return self._get_deleted_datasets_from_search_index()
+
+    def _get_deleted_datasets_from_db(self):
+        return model.Session.query(
+            model.Package
+        ).filter_by(
+            state=model.State.DELETED
+        )
+
+    def _get_deleted_datasets_from_search_index(self):
+        query = search.query_for(model.Package)
+        search_params = {
+            'fq': '+state:deleted',
+            'df': 'text',
+            'fl': 'id name title dataset_type',
+        }
+        query.run(search_params)
+
+        return query.results
 
     def get(self):
         ent_type = request.args.get(u'name')
@@ -207,21 +232,31 @@ class TrashView(MethodView):
         )
 
         for action, deleted_entities in zip(actions, entities):
+            if type(deleted_entities) == list:
+                def get_id(x): return x['id']
+            else:
+                def get_id(x): return x.id
+
             for entity in deleted_entities:
                 logic.get_action(action)(
-                    {u'user': g.user}, {u'id': entity.id}
+                    {u'user': g.user}, {u'id': get_id(entity)}
                 )
             model.Session.remove()
         h.flash_success(_(u'Massive purge complete'))
 
     def purge_entity(self, ent_type):
         entities = self.deleted_entities[ent_type]
-        number = entities.count()
+        if type(entities) == list:
+            number = len(entities)
+            def get_id(x): return x['id']
+        else:
+            number = entities.count()
+            def get_id(x): return x.id
 
         for ent in entities:
             logic.get_action(self._get_purge_action(ent_type))(
                 {u'user': g.user},
-                {u'id': ent.id}
+                {u'id': get_id(ent)}
             )
 
         model.Session.remove()
