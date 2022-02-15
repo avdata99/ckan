@@ -12,7 +12,7 @@ import ckan.lib.navl.dictization_functions as dict_fns
 import ckan.lib.search as search
 import ckan.logic as logic
 import ckan.model as model
-from ckan.common import g, _, config, request
+from ckan.common import g, _, config, request, asbool
 from ckan.views.home import CACHE_PARAMETERS
 
 
@@ -175,7 +175,7 @@ class TrashView(MethodView):
         }
 
     def _get_deleted_datasets(self):
-        if config.get_value('ckan.search.remove_deleted_packages'):
+        if asbool(config.get('ckan.search.remove_deleted_packages')):
             return self._get_deleted_datasets_from_db()
         else:
             return self._get_deleted_datasets_from_search_index()

@@ -12,8 +12,7 @@ import re
 
 import six
 import pysolr
-from ckan.common import config
-from ckan.common import asbool
+from ckan.common import asbool, config
 import six
 from six import text_type
 from six.moves import map
@@ -137,7 +136,7 @@ class PackageSearchIndex(SearchIndex):
         if title:
             pkg_dict['title_string'] = title
 
-        if config.get_value('ckan.search.remove_deleted_packages'):
+        if asbool(config.get('ckan.search.remove_deleted_packages')):
             # delete the package if there is no state, or the state is `deleted`
             if (not pkg_dict.get('state') or 'deleted' in pkg_dict.get('state')):
                 return self.delete_package(pkg_dict)

@@ -171,7 +171,7 @@ def rebuild(package_id=None, only_missing=False, force=False, refresh=False,
             package_index.update_dict(pkg_dict, True)
     else:
         packages = model.Session.query(model.Package.id)
-        if config.get_value('ckan.search.remove_deleted_packages'):
+        if asbool(config.get('ckan.search.remove_deleted_packages')):
             packages = packages.filter(model.Package.state != 'deleted')
         
         package_ids = [r[0] for r in packages.all()]
