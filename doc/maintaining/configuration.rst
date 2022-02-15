@@ -1059,6 +1059,17 @@ to occur asynchronously, set this option to false.
 
 .. note:: This is equivalent to explicitly load the ``synchronous_search`` plugin.
 
+ckan.search.remove_deleted_packages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example::
+
+ ckan.search.remove_deleted_packages = true
+
+Default value: |config:ckan.search.remove_deleted_packages|
+
+By default, deleted datasets are removed from the search index so are no longer available in searches. To keep them in the search index, set this setting to ``False``. This will enable the  ``include_deleted`` parameter in the  :py:func:`ckan.logic.action.get.package_search` API action.
+
 .. _ckan.search.solr_commit:
 
 ckan.search.solr_commit

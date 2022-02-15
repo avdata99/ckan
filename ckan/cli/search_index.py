@@ -41,7 +41,7 @@ def rebuild(
                 force=force,
                 refresh=refresh,
                 defer_commit=(not commit_each),
-                quiet=quiet)
+                quiet=quiet and not verbose)
     except Exception as e:
         tk.error_shout(e)
     if not commit_each:
