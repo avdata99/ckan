@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ckan.types import Context
+import ckan.model.meta as Meta
 import logging
 import json
 import datetime
@@ -125,12 +126,13 @@ def datapusher_submit(context: Context, data_dict: dict[str, Any]):
     context['ignore_auth'] = True
     # Use local session for task_status_update, so it can commit its own
     # results without messing up with the parent session that contains pending
-    # updats of dataset/resource/etc.
-    context.update({
-        'session': context['model'].meta.create_local_session()  # type: ignore
-    })
-    p.toolkit.get_action('task_status_update')(context, task)
-
+    # updates of dataset/resource/etc.
+    meta: Meta = context['model'].meta  # type: ignore
+    with meta.create_local_session() as session:
+        context.update({
+            'session': session  # type: ignore
+        })
+        p.toolkit.get_action('task_status_update')(context, task)
     timeout = config.get('ckan.requests.timeout')
 
     # This setting is checked on startup

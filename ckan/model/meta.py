@@ -14,14 +14,18 @@ __all__ = ['Session']
 # SQLAlchemy database engine. Updated by model.init_model()
 engine: Optional[Engine] = None
 
-
+"""
+Default Session, it is scoped session which will auto cleanup
+"""
 Session: AlchemySession = orm.scoped_session(orm.sessionmaker(
     autoflush=False,
     autocommit=False,
     expire_on_commit=False,
 ))
 
-
+"""
+Manual sessions factory, you MUST ``session.close()`` is Explicitly required as it won't self clean up
+"""
 create_local_session = orm.sessionmaker(
     autoflush=False,
     autocommit=False,
