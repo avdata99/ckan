@@ -7,6 +7,7 @@ from typing import Any
 from contextlib import contextmanager
 
 import sqlalchemy
+from sqlalchemy.engine.base import Connection
 import sqlalchemy.exc
 
 import ckan.lib.navl.dictization_functions
@@ -245,17 +246,19 @@ def datastore_run_triggers(context: Context, data_dict: dict[str, Any]) -> int:
     res_id = data_dict['resource_id']
     p.toolkit.check_access('datastore_run_triggers', context, data_dict)
     backend = DatastoreBackend.get_active_backend()
-    connection = backend._get_write_engine().connect()  # type: ignore
+    connection: Connection = backend._get_write_engine().connect()  # type: ignore
 
     sql = sqlalchemy.text(u'''update {0} set _id=_id '''.format(
                           identifier(res_id)))
     try:
         results: Any = connection.execute(sql)
+        return results.rowcount
     except sqlalchemy.exc.DatabaseError as err:
         message = str(err.args[0].split('\n')[0])
         raise p.toolkit.ValidationError({
                 u'records': [message.split(u') ', 1)[-1]]})
-    return results.rowcount
+    finally:
+        connection.close()
 
 
 def datastore_upsert(context: Context, data_dict: dict[str, Any]):

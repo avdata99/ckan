@@ -5,7 +5,7 @@ import itertools
 
 from typing_extensions import TypeAlias
 
-from sqlalchemy.engine.base import Engine
+from sqlalchemy.engine.base import Engine, Connection
 from sqlalchemy.dialects.postgresql import REGCLASS
 from ckan.types import Context, ErrorDict
 import copy
@@ -1807,8 +1807,8 @@ def search_sql(context: Context, data_dict: dict[str, Any]):
     backend = DatastorePostgresqlBackend.get_active_backend()
     engine = backend._get_read_engine()  # type: ignore
     _cache_types(engine)
-
-    context['connection'] = engine.connect()
+    connection: Connection = engine.connect()
+    context['connection'] = connection
     timeout = context.get('query_timeout', _TIMEOUT)
 
     sql = data_dict['sql']
@@ -1820,7 +1820,7 @@ def search_sql(context: Context, data_dict: dict[str, Any]):
 
     try:
 
-        context['connection'].execute(sa.text(
+        connection.execute(sa.text(
             f"SET LOCAL statement_timeout TO {timeout}"
         ))
 
@@ -1875,15 +1875,15 @@ def search_sql(context: Context, data_dict: dict[str, Any]):
             })
         raise
     finally:
-        context['connection'].close()
+        connection.close()
 
 
 class DatastorePostgresqlBackend(DatastoreBackend):
 
-    def _get_write_engine(self):
+    def _get_write_engine(self) -> Engine:
         return _get_engine_from_url(self.write_url)
 
-    def _get_read_engine(self):
+    def _get_read_engine(self) -> Engine:
         return _get_engine_from_url(self.read_url)
 
     def _log_or_raise(self, message: str):
@@ -1907,7 +1907,7 @@ class DatastorePostgresqlBackend(DatastoreBackend):
         if not self._read_connection_has_correct_privileges():
             self._log_or_raise('The read-only user has write privileges.')
 
-    def _is_postgresql_engine(self):
+    def _is_postgresql_engine(self) -> bool:
         ''' Returns True if the read engine is a Postgresql Database.
 
         According to
@@ -1917,7 +1917,7 @@ class DatastorePostgresqlBackend(DatastoreBackend):
         drivername = self._get_read_engine().engine.url.drivername
         return drivername.startswith('postgres')
 
-    def _is_read_only_database(self):
+    def _is_read_only_database(self) -> bool:
         ''' Returns True if no connection has CREATE privileges on the public
         schema. This is the case if replication is enabled.'''
         for url in [self.ckan_url, self.write_url, self.read_url]:
@@ -1932,7 +1932,7 @@ class DatastorePostgresqlBackend(DatastoreBackend):
                 return False
         return True
 
-    def _same_ckan_and_datastore_db(self):
+    def _same_ckan_and_datastore_db(self) -> bool:
         '''Returns True if the CKAN and DataStore db are the same'''
         return self._get_db_from_url(self.ckan_url) == self._get_db_from_url(
             self.read_url)
@@ -2152,18 +2152,19 @@ class DatastorePostgresqlBackend(DatastoreBackend):
         engine = get_write_engine()
         _cache_types(engine)
 
-        context['connection'] = engine.connect()
+        connection = engine.connect()
+        context['connection'] = connection
         timeout = context.get('query_timeout', _TIMEOUT)
 
         _rename_json_field(data_dict)
 
-        trans = context['connection'].begin()
+        trans = connection.begin()
         try:
             # check if table already exists
-            context['connection'].execute(sa.text(
+            connection.execute(sa.text(
                 f"SET LOCAL statement_timeout TO {timeout}"
             ))
-            result = context['connection'].execute(sa.text(
+            result = connection.execute(sa.text(
                 'SELECT * FROM pg_tables WHERE tablename = :table'
             ), {"table": data_dict['resource_id']}).fetchone()
             if not result:
@@ -2175,7 +2176,7 @@ class DatastorePostgresqlBackend(DatastoreBackend):
                 alter_table(context, data_dict, plugin_data)
             if 'triggers' in data_dict:
                 _create_triggers(
-                    context['connection'],
+                    connection,
                     data_dict['resource_id'],
                     data_dict['triggers'])
             insert_data(context, data_dict)
@@ -2211,7 +2212,7 @@ class DatastorePostgresqlBackend(DatastoreBackend):
             trans.rollback()
             raise
         finally:
-            context['connection'].close()
+            connection.close()
 
     def upsert(self, context: Context, data_dict: dict[str, Any]):
         data_dict['connection_url'] = self.write_url
