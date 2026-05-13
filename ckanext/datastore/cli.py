@@ -22,7 +22,7 @@ from ckanext.datastore.backend.postgres import (
     _get_raw_field_info,
     _TIMEOUT,
 )
-from ckanext.datastore.blueprint import DUMP_FORMATS, dump_to
+from ckanext.datastore.blueprint import get_dump_formats, dump_to
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ def permissions_sql(maindb: str, datastoredb: str, mainuser: str,
     type=click.File(u'wb'),
     default=click.get_binary_stream(u'stdout')
 )
-@click.option(u'--format', default=u'csv', type=click.Choice(DUMP_FORMATS))
+@click.option(u'--format', default=u'csv', type=click.Choice(get_dump_formats()))
 @click.option(u'--offset', type=click.IntRange(0, None), default=0)
 @click.option(u'--limit', type=click.IntRange(0))
 @click.option(u'--bom', is_flag=True)
